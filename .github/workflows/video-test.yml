@@ -1,0 +1,28 @@
+YAML
+name: Tony's Tech Video Test
+on:
+workflow_dispatch:
+permissions:
+contents: read
+jobs: create-video:
+runs-on: ubuntu-latest timeout-minutes: 15
+steps:
+- name: Install FFmpeg run:
+sudo apt-get update
+sudo apt-get install -y ffmpeg
+- name:
+Generate first test video
+run:
+mkdir -p output ffmpeg -y \
+-f lavfi -i "color=c=0x101827:s=108€
+-f lavfi -i "sine=frequency=440:dura
+-vf "drawtext=text='TONYS TECH TALK
+-af "volume=0.03" \
+-c:v libx264 -preset ultrafast |
+-pix_fmt yuv420p \
+-c:a aac -shortest \ output/first-test.mp4
+- name: Save finished video
+uses: actions/upload-artifact@v4 with:
+name: Tonys-First-Automated-Video
+path: output/first-test.mp4
+retention-days: 7
