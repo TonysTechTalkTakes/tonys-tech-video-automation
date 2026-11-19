@@ -1,29 +1,81 @@
-
-name: Tony's Tech Short
+name: Tony's Tech Video
 
 on:
   workflow_dispatch:
+    inputs:
+      title:
+        description: Video headline
+        required: true
+        default: 3 Phone Battery Tips
+        type: string
+      script:
+        description: Narration script. Keep Shorts concise; long-form supports roughly 12–16 minutes.
+        required: true
+        default: "Three simple phone battery tips. First, avoid extreme heat. Second, turn on optimized charging if your phone supports it. Third, reduce screen brightness when possible. Subscribe to Tony's Tech Talk Takes for more tech tips!"
+        type: string
+      format:
+        description: Video layout
+        required: true
+        default: short
+        type: choice
+        options:
+          - short
+          - long
+
+permissions:
+  contents: read
 
 jobs:
   render:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Install video and voice tools
+      - name: Check out video renderer
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg and font
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install --user edge-tts
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
 
-      - name: Create natural male narration
+      - name: Install approved voice engine
+        run: python -m pip install --user --upgrade edge-tts
+
+      - name: Render narrated video
+        env:
+          VIDEO_TITLE: ${{ inputs.title }}
+          NARRATION_SCRIPT: ${{ inputs.script }}
+          VIDEO_FORMAT: ${{ inputs.format }}
         run: |
-          python -m edge_tts --voice en-US-GuyNeural --rate=-5% --text "Three simple phone battery tips. First, avoid extreme heat. Second, turn on optimized charging if your phone supports it. Third, reduce screen brightness when possible. Subscribe to Tony's Tech Talk Takes for more tech tips!" --write-media voice.mp3
+          python scripts/render_video.py \
+            --title "$VIDEO_TITLE" \
+            --script "$NARRATION_SCRIPT" \
+            --format "$VIDEO_FORMAT"
 
-      - name: Create video
+      - name: Verify playable MP4
+        env:
+          VIDEO_FORMAT: ${{ inputs.format }}
         run: |
-          ffmpeg -f lavfi -i color=c=0x102448:s=720x1280:r=30 -i voice.mp3 -vf "drawtext=text='TONYS TECH TALK TAKES':fontcolor=white:fontsize=35:x=(w-text_w)/2:y=200,drawtext=text='3 PHONE BATTERY TIPS':fontcolor=cyan:fontsize=43:x=(w-text_w)/2:y=450,drawtext=text='HEAT  |  CHARGING  |  BRIGHTNESS':fontcolor=white:fontsize=25:x=(w-text_w)/2:y=650,drawtext=text='SUBSCRIBE FOR MORE':fontcolor=yellow:fontsize=34:x=(w-text_w)/2:y=1000" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest -y tech-short.mp4
+          if [ "$VIDEO_FORMAT" = "long" ]; then
+            output=tonys-tech-long.mp4
+            expected=1920x1080
+          else
+            output=tonys-tech-short.mp4
+            expected=720x1280
+          fi
+          test -s "$output"
+          dimensions=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$output")
+          test "$dimensions" = "$expected"
+          ffmpeg -v error -i "$output" -f null -
 
-      - name: Save video
+      - name: Save review artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tonys-tech-short-natural-voice
-          path: tech-short.mp4
+          name: tonys-tech-video-${{ inputs.format }}-${{ github.run_number }}
+          path: |
+            tonys-tech-short.mp4
+            tonys-tech-long.mp4
+            voice.vtt
+            captions.ass
+          if-no-files-found: error
+          retention-days: 14
