@@ -8,21 +8,22 @@ jobs:
   render:
     runs-on: ubuntu-latest
     steps:
-      - name: Install tools
+      - name: Install video and voice tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg espeak-ng
+          sudo apt-get install -y ffmpeg
+          python -m pip install --user edge-tts
 
-      - name: Create narration
+      - name: Create natural male narration
         run: |
-          espeak-ng -v en-us -s 145 -w voice.wav "Three simple phone battery tips. First, avoid extreme heat. Second, turn on optimized charging if your phone supports it. Third, reduce screen brightness when possible. Subscribe to Tony's Tech Talk Takes for more tech tips!"
+          python -m edge_tts --voice en-US-GuyNeural --rate=-5% --text "Three simple phone battery tips. First, avoid extreme heat. Second, turn on optimized charging if your phone supports it. Third, reduce screen brightness when possible. Subscribe to Tony's Tech Talk Takes for more tech tips!" --write-media voice.mp3
 
       - name: Create video
         run: |
-          ffmpeg -f lavfi -i color=c=0x102448:s=720x1280:r=30 -i voice.wav -vf "drawtext=text='TONYS TECH TALK TAKES':fontcolor=white:fontsize=35:x=(w-text_w)/2:y=200,drawtext=text='3 PHONE BATTERY TIPS':fontcolor=cyan:fontsize=43:x=(w-text_w)/2:y=450,drawtext=text='HEAT  |  CHARGING  |  BRIGHTNESS':fontcolor=white:fontsize=25:x=(w-text_w)/2:y=650,drawtext=text='SUBSCRIBE FOR MORE':fontcolor=yellow:fontsize=34:x=(w-text_w)/2:y=1000" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest -y tech-short.mp4
+          ffmpeg -f lavfi -i color=c=0x102448:s=720x1280:r=30 -i voice.mp3 -vf "drawtext=text='TONYS TECH TALK TAKES':fontcolor=white:fontsize=35:x=(w-text_w)/2:y=200,drawtext=text='3 PHONE BATTERY TIPS':fontcolor=cyan:fontsize=43:x=(w-text_w)/2:y=450,drawtext=text='HEAT  |  CHARGING  |  BRIGHTNESS':fontcolor=white:fontsize=25:x=(w-text_w)/2:y=650,drawtext=text='SUBSCRIBE FOR MORE':fontcolor=yellow:fontsize=34:x=(w-text_w)/2:y=1000" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest -y tech-short.mp4
 
       - name: Save video
         uses: actions/upload-artifact@v4
         with:
-          name: tonys-first-tech-short
+          name: tonys-tech-short-natural-voice
           path: tech-short.mp4
